@@ -1,0 +1,5 @@
+# Ignore everything in /bin/
+bin/*
+
+# Whitelist .meta files in /bin/
+!bin/*.meta
