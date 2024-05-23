@@ -6,7 +6,14 @@ build_linux:
 
 install_local:
 	@echo "Installing locally"
-	tar -xzvf ./dist/linux/${f} -C ./bin
+	@if [ -z "$(f)" ]; then \
+		echo "Error: 'f' variable is not set. Please specify the file to install. "; \
+		echo "USAGE: make install_local f=request_inspector_v<version_number>.tar.gz"; \
+		echo "run ls -la ./dist/linux to see the available files for install"; \
+		exit 1; \
+	fi
+	@echo "Installing locally"
+	tar -xzvf ./dist/linux/$(f) -C ./bin
 	chmod +x ./bin/request_inspector
 
 start_local:
