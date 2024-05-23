@@ -34,17 +34,18 @@ func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Session not found", http.StatusNotFound)
 		return
 	}
-	session.Mutex.Lock()
-	defer session.Mutex.Unlock()
-	if len(session.Requests) >= 5 {
-		session.Requests = session.Requests[1:]
-	}
 	reqBytes, err := httputil.DumpRequest(r, true)
 	if err != nil {
 		http.Error(w, "Failed to dump request", http.StatusInternalServerError)
 		return
 	}
 	reqString := string(reqBytes)
+
+	session.Mutex.Lock()
+	defer session.Mutex.Unlock()
+	if len(session.Requests) >= 5 {
+		session.Requests = session.Requests[1:]
+	}
 	session.Requests = append(session.Requests, reqString)
 }
 
