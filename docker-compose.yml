@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  request_inspector:
+  inspector:
     build: .
     container_name: request_inspector
     restart: unless-stopped  
