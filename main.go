@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"sync"
@@ -34,7 +33,11 @@ func createSessionHandler(w http.ResponseWriter, r *http.Request) {
 		Requests:       make([]string, 0),
 		ExpirationTime: time.Now().Add(sessionDuration),
 	}
-	fmt.Fprint(w, id)
+
+	response := map[string]string{"session_id": id}
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
