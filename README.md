@@ -24,6 +24,15 @@ Ensure that Go is installed on your system and that you can compile Go projects.
 
 Copy the binary to the server where you want to run the application and execute it.
 
+## As Docker Container
+
+Run `make install_local f=request_inspector<version>.tar.gz` to extract the binary file in the bin directory. 
+Then create a copy of the `.env.example` file and name it `.env`. Update the values in the `.env` file as needed. 
+Finally, run `docker-compose up -d` to start the application.
+
+When running the application in a Docker container, the application won't be available on the host machine's port, you will need a proxy container like nginx to act as reverse proxy to the application.
+If you want to run the application on the host machine's port, you can edit the docker compose file to expose the application on the host machine's port.
+
 # Note 
 
 If HTTPS support is needed, consider running this application behind a reverse proxy like Nginx or Apache. Additionally, add a firewall rule to block all incoming traffic except from the reverse proxy.

@@ -3,3 +3,5 @@ bin/*
 
 # Whitelist .meta files in /bin/
 !bin/*.meta
+
+*.env

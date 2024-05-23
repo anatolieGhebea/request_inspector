@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  request_inspector:
+    build: .
+    container_name: request_inspector
+    restart: unless-stopped  
+    environment:
+      - TZ=Europe/Rome
+  
+networks:
+  default:
+    external:
+      name: ${DOCKER_VPN}
