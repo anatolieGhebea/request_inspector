@@ -130,10 +130,24 @@ func cleanupExpiredSessions() {
 	}
 }
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	go cleanupExpiredSessions() // Start the cleanup goroutine
 
 	r := mux.NewRouter()
+	r.Use(corsMiddleware) // Apply the middleware
 	r.HandleFunc("/create", createSessionHandler)
 	r.HandleFunc("/request/{id}", sessionRequestHandler)
 	r.HandleFunc("/session/{id}", getSessionHandler)
