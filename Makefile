@@ -27,21 +27,3 @@ stop_local:
 show_running:
 	@echo "Running processes"
 	ps aux | grep request_inspector
-
-install_system:
-	@echo "TODO: Installing as system service"
-
-start_system:
-	@echo "TODO: Starting as system service"
-
-stop_system:
-	@echo "TODO: Stopping as system service"
-
-restart_system:
-	@echo "TODO: Restarting as system service"
-
-enable_system:
-	@echo "TODO: Enabling as system service"
-
-disable_system:
-	@echo "TODO: Disabling as system service"
