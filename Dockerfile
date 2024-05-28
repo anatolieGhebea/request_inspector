@@ -1,7 +1,12 @@
+# Stage 1: Build the Go app
+FROM golang:1.21 AS builder
+
+WORKDIR /app
+COPY . .
+RUN GOOS=linux GOARCH=amd64 go build -o request_inspector ./...
+
+# Stage 2: Copy the binary into a scratch container
 FROM scratch
-# WORKDIR /
-# RUN mkdir app
-COPY ./bin/request_inspector /request_inspector
-# RUN ls -la
-# RUN chmod +x /app/request_inspector
+
+COPY --from=builder /app/request_inspector /request_inspector
 ENTRYPOINT ["/request_inspector"]

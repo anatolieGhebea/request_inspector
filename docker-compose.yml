@@ -2,13 +2,11 @@ version: '3'
 
 services:
   inspector:
-    build: .
-    container_name: request_inspector
+    image: ghebby/request_inspector:0.0.1
     restart: unless-stopped  
     environment:
       - TZ=Europe/Rome
-  
-networks:
-  default:
-    external:
-      name: ${DOCKER_VPN}
+      - PORT=9001
+    ports:
+      # host:container
+      - 9099:9001
