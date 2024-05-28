@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -22,10 +25,13 @@ type Session struct {
 var sessions = make(map[string]*Session)
 var sessionsMutex sync.RWMutex // Use RWMutex for read-write locking
 
-const requestLimit = 10
-const requestWindow = time.Minute
-const sessionDuration = time.Hour
-const extensionThreshold = 10 * time.Minute
+const (
+	defaultPort        = 8189
+	requestLimit       = 10
+	requestWindow      = time.Minute
+	sessionDuration    = time.Hour
+	extensionThreshold = 10 * time.Minute
+)
 
 func createSessionHandler(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New().String()
@@ -146,11 +152,19 @@ func corsMiddleware(next http.Handler) http.Handler {
 func main() {
 	go cleanupExpiredSessions() // Start the cleanup goroutine
 
+	strPort, err := strconv.Atoi(os.Getenv("PORT"))
+	if err != nil {
+		strPort = defaultPort
+	}
+
+	port := fmt.Sprintf(":%d", strPort)
+
 	r := mux.NewRouter()
 	r.Use(corsMiddleware) // Apply the middleware
 	r.HandleFunc("/create", createSessionHandler)
 	r.HandleFunc("/request/{id}", sessionRequestHandler)
 	r.HandleFunc("/session/{id}", getSessionHandler)
 	r.HandleFunc("/extend/{id}", extendSessionHandler)
-	http.ListenAndServe(":8189", r)
+	fmt.Println("Server started on port", port)
+	http.ListenAndServe(port, r)
 }
