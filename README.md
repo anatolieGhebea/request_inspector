@@ -4,13 +4,15 @@ Have you ever been in a situation where you needed to inspect a request from a t
 
 # Usage
 @TODO: improve this section
+
 An instance of this application is live at [request_inspector](http://request_inspector.ga-dns.com/), where you can see it in action. On the page, create a session. Then, using any HTTP client (e.g., curl, Postman), send a request to the URL provided on the session page. You will see the request header and payload displayed on the session page.
 
 Each session is valid for one hour and can hold up to five requests. Throttling is in place to prevent abuse, allowing a maximum of ten requests per minute. 
 
 None of the requests are persisted on disk or in a database; they are stored in memory and will be lost when the session expires or is terminated by the user.
 
-** NOTE ** the current version is missing the UI, so you will need to use an HTTP client to send requests to the provided URLs.
+**NOTE** 
+the current version is missing the UI, so you will need to use an HTTP client to send requests to the provided URLs.
 `/create` to create a session
 `/session/<session_id>` to view request details made to the `/request/<session_id>` endpoint
 `/request/<session_id>` the end point that logs the request
