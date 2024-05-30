@@ -19,19 +19,9 @@ the current version is missing the UI, so you will need to use an HTTP client to
 `/extend/<session_id>` to extend the session
 
 # Installation 
-
 When working with highly sensitive data, it is recommended to host your own instance of this application. The application is built using the Go programming language and can run on any platform that supports Go. For the best security, consider installing by compiling the source code. This ensures that the code you are running matches the code in the repository. A Linux-compiled binary is also provided for convenience.
 
-## Compiled Binary
-
-@TODO
-
-## From Source 
-
-You can clone this project and run `go run main.go` to start the application in development mode.
-`GOOS=<platform> GOARCH=<arch> go build -o <output_file>` to compile the application for a specific platform and architecture.
-
-## As Docker Container
+## As Docker Container (Recommended)
 
 To run the application as a Docker container, you will need Docker and Docker Compose installed on your system.
 Then you can create a `docker-compose.yml` file with the following content:
@@ -51,7 +41,23 @@ services:
       - 9099:9001
 ```
 
+> Check the [hub.docker.com/r/ghebby/request_inspector](https://hub.docker.com/r/ghebby/request_inspector) page for the latest available version of the image.
+
 Run `docker-compose up -d` to start the application. The application will be available on port 9099 of the host machine.
 Run `docker-compose down` to stop the application.
 
 I you need https support, consider adding a reverse proxy like Nginx or Apache in front of the application, the best way is to add a container with the reverse proxy to the `docker-compose.yml` file, run them in the same docker network and configure the reverse proxy to forward the requests to the application container.
+
+## Compiled Binary
+
+Download a release from the release page. The compressed file contains a binary file that you can run on your system and the static folder with the UI files.
+Make sure you have the `make` cli tool installed on your system.
+1.  `make install_local f=<file_name>.tar.gz` to install the application
+2.  `make start_local` to start the application
+3.  `make show_running` to view the running instances 
+4.  `make stop_local` to stop the application
+
+## From Source 
+
+You can clone this project and run `go run main.go` to start the application in development mode.
+`GOOS=<platform> GOARCH=<arch> go build -o <output_file>` to compile the application for a specific platform and architecture.
