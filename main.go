@@ -22,6 +22,10 @@ type Session struct {
 	ExpirationTime  time.Time
 }
 
+type ErrorJsonResponse struct {
+	Error string `json:"error"`
+}
+
 var sessions = make(map[string]*Session)
 var sessionsMutex sync.RWMutex // Use RWMutex for read-write locking
 
@@ -34,6 +38,7 @@ const (
 )
 
 func createSessionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	id := uuid.New().String()
 	sessions[id] = &Session{
 		Requests:       make([]string, 0),
@@ -42,16 +47,19 @@ func createSessionHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]string{"session_id": id}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Failed to create session"})
 	}
 }
 
 func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	id := vars["id"]
 	session, exists := sessions[id]
 	if !exists {
-		http.Error(w, "Session not found", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
 		return
 	}
 	session.Mutex.Lock()
@@ -66,14 +74,16 @@ func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if session.RequestCount >= requestLimit {
-		http.Error(w, "Request limit exceeded", http.StatusTooManyRequests)
+		w.WriteHeader(http.StatusTooManyRequests)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Request limit exceeded"})
 		return
 	}
 
 	// Process the request
 	reqBytes, err := httputil.DumpRequest(r, true)
 	if err != nil {
-		http.Error(w, "Failed to dump request", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Failed to dump request"})
 		return
 	}
 	reqString := string(reqBytes)
@@ -87,25 +97,30 @@ func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSessionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	id := vars["id"]
 	session, exists := sessions[id]
 	if !exists {
-		http.Error(w, "Session not found", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
 		return
 	}
 	session.Mutex.Lock()
 	defer session.Mutex.Unlock()
+
 	json.NewEncoder(w).Encode(session.Requests)
 }
 
 func extendSessionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	session, exists := sessions[id]
 	if !exists {
-		http.Error(w, "Session not found", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
 		return
 	}
 
@@ -117,8 +132,50 @@ func extendSessionHandler(w http.ResponseWriter, r *http.Request) {
 		session.ExpirationTime = time.Now().Add(sessionDuration)
 		json.NewEncoder(w).Encode("Session extended by one hour")
 	} else {
-		http.Error(w, "Session does not need extension", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session does not need extension"})
 	}
+}
+
+func clearSessionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	session, exists := sessions[id]
+	if !exists {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		return
+	}
+
+	session.Mutex.Lock()
+	defer session.Mutex.Unlock()
+
+	session.Requests = []string{}
+	session.RequestCount = 0
+	session.LastRequestTime = time.Now()
+
+	json.NewEncoder(w).Encode("Session cleared")
+}
+
+func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	_, exists := sessions[id]
+	if !exists {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		return
+	}
+
+	sessionsMutex.Lock()
+	delete(sessions, id)
+	sessionsMutex.Unlock()
+
+	json.NewEncoder(w).Encode("Session deleted")
 }
 
 func cleanupExpiredSessions() {
@@ -159,12 +216,30 @@ func main() {
 
 	port := fmt.Sprintf(":%d", strPort)
 
+	// Create a file server for serving static files
+	fs := http.FileServer(http.Dir("./static"))
+
 	r := mux.NewRouter()
 	r.Use(corsMiddleware) // Apply the middleware
-	r.HandleFunc("/create", createSessionHandler)
-	r.HandleFunc("/request/{id}", sessionRequestHandler)
-	r.HandleFunc("/session/{id}", getSessionHandler)
-	r.HandleFunc("/extend/{id}", extendSessionHandler)
+
+	// Serve index.html for the root URL ("/")
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/index.html")
+	})
+
+	// API routes
+	apiRouter := r.PathPrefix("/api").Subrouter()
+	apiRouter.HandleFunc("/create", createSessionHandler)
+	apiRouter.HandleFunc("/request/{id}", sessionRequestHandler)
+	apiRouter.HandleFunc("/session/{id}", getSessionHandler)
+	apiRouter.HandleFunc("/extend/{id}", extendSessionHandler)
+	apiRouter.HandleFunc("/clear/{id}", clearSessionHandler)
+	apiRouter.HandleFunc("/clear/{id}", clearSessionHandler)
+	apiRouter.HandleFunc("/delete/{id}", deleteSessionHandler)
+
+	// Serve static files for all other routes
+	r.PathPrefix("/").Handler(http.StripPrefix("/", fs))
+
 	fmt.Println("Server started on port", port)
 	http.ListenAndServe(port, r)
 }
