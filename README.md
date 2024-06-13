@@ -61,3 +61,4 @@ Make sure you have the `make` cli tool installed on your system.
 
 You can clone this project and run `go run main.go` to start the application in development mode.
 `GOOS=<platform> GOARCH=<arch> go build -o <output_file>` to compile the application for a specific platform and architecture.
+
