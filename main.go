@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,6 +27,10 @@ type ErrorJsonResponse struct {
 	Error string `json:"error"`
 }
 
+const HEAR_CONTENT_TYPE = "Content-Type"
+const HEAR_APPLICATION_JSON = "application/json"
+const SESSION_NOT_FOUND = "Session not found"
+
 var sessions = make(map[string]*Session)
 var sessionsMutex sync.RWMutex // Use RWMutex for read-write locking
 
@@ -37,12 +42,12 @@ const (
 	extensionThreshold = 10 * time.Minute
 )
 
-func createSessionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+func createSessionHandler(w http.ResponseWriter, r *http.Request, duration time.Duration) {
+	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	id := uuid.New().String()
 	sessions[id] = &Session{
 		Requests:       make([]string, 0),
-		ExpirationTime: time.Now().Add(sessionDuration),
+		ExpirationTime: time.Now().Add(duration),
 	}
 
 	response := map[string]string{"session_id": id}
@@ -53,13 +58,13 @@ func createSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
 	session.Mutex.Lock()
@@ -97,13 +102,13 @@ func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSessionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
 	session.Mutex.Lock()
@@ -113,14 +118,14 @@ func getSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func extendSessionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
 
@@ -138,14 +143,14 @@ func extendSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func clearSessionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
 
@@ -160,14 +165,14 @@ func clearSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	_, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: "Session not found"})
+		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
 
@@ -178,25 +183,32 @@ func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode("Session deleted")
 }
 
-func cleanupExpiredSessions() {
-	for {
-		time.Sleep(time.Minute) // Run cleanup every minute
-		now := time.Now()
+func cleanupExpiredSessions(ctx context.Context, cleanupInterval time.Duration) {
+	ticker := time.NewTicker(cleanupInterval)
+	defer ticker.Stop()
 
-		sessionsMutex.Lock()
-		for id, session := range sessions {
-			if now.After(session.ExpirationTime) {
-				delete(sessions, id)
+	for {
+		select {
+		case <-ticker.C:
+			now := time.Now()
+
+			sessionsMutex.Lock()
+			for id, session := range sessions {
+				if now.After(session.ExpirationTime) {
+					delete(sessions, id)
+				}
 			}
+			sessionsMutex.Unlock()
+		case <-ctx.Done():
+			return
 		}
-		sessionsMutex.Unlock()
 	}
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", HEAR_CONTENT_TYPE)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -207,7 +219,10 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	go cleanupExpiredSessions() // Start the cleanup goroutine
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go cleanupExpiredSessions(ctx, time.Minute) // Start the cleanup goroutine
 
 	strPort, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
@@ -229,7 +244,9 @@ func main() {
 
 	// API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()
-	apiRouter.HandleFunc("/create", createSessionHandler)
+	apiRouter.HandleFunc("/create", func(w http.ResponseWriter, r *http.Request) {
+		createSessionHandler(w, r, sessionDuration)
+	})
 	apiRouter.HandleFunc("/request/{id}", sessionRequestHandler)
 	apiRouter.HandleFunc("/session/{id}", getSessionHandler)
 	apiRouter.HandleFunc("/extend/{id}", extendSessionHandler)
