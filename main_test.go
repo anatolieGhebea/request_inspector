@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -27,7 +28,7 @@ func TestCreateSessionHandler(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("crete session handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	var response map[string]string
@@ -42,7 +43,7 @@ func TestCreateSessionHandler(t *testing.T) {
 }
 
 func TestSessionRequestHandler(t *testing.T) {
-	sessionID := "test-session-id"
+	sessionID := "test-session-id1"
 	sessions[sessionID] = &Session{
 		Requests:       make([]string, 0),
 		ExpirationTime: time.Now().Add(sessionDuration),
@@ -59,19 +60,19 @@ func TestSessionRequestHandler(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("session handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	expected := "\"Request processed\"\n"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("session handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
 	}
 }
 
 // Add more test functions for other handlers...
 
 func TestCleanupExpiredSessions(t *testing.T) {
-	sessionID := "test-session-id"
+	sessionID := "test-session-id2"
 	expiredSessionID := "expired-session-id"
 
 	testDuration := 100 * time.Millisecond // 100ms
@@ -108,7 +109,7 @@ func TestCleanupExpiredSessions(t *testing.T) {
 
 func TestGetSessionHandler(t *testing.T) {
 	// Create a test session
-	sessionID := "test-session-id"
+	sessionID := "test-session-id3"
 	testRequests := []string{"request1", "request2", "request3"}
 	sessions[sessionID] = &Session{
 		Requests:       testRequests,
@@ -133,7 +134,7 @@ func TestGetSessionHandler(t *testing.T) {
 
 	// Check the response status code
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("get session handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	// Check the response body
@@ -144,7 +145,7 @@ func TestGetSessionHandler(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(responseRequests, testRequests) {
-		t.Errorf("handler returned unexpected response: got %v want %v", responseRequests, testRequests)
+		t.Errorf("get session  handler returned unexpected response: got %v want %v", responseRequests, testRequests)
 	}
 
 	// Clean up the test session
@@ -153,7 +154,7 @@ func TestGetSessionHandler(t *testing.T) {
 
 func TestExtendSessionHandler(t *testing.T) {
 	// Create a test session
-	sessionID := "test-session-id"
+	sessionID := "test-session-id4"
 	sessions[sessionID] = &Session{
 		Requests:       []string{},
 		ExpirationTime: time.Now().Add(extensionThreshold / 2), // Set expiration time to half of the threshold
@@ -177,13 +178,13 @@ func TestExtendSessionHandler(t *testing.T) {
 
 	// Check the response status code
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("extend session handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	// Check the response body
 	expected := "\"Session extended by one hour\"\n"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("extend session handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
 	}
 
 	// Check if the session expiration time was extended
@@ -205,12 +206,12 @@ func TestExtendSessionHandler(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
+		t.Errorf("extend session handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
 	}
 
 	expected = "{\"error\":\"Session does not need extension\"}\n"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("extennd session handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
 	}
 
 	// Clean up the test session
@@ -219,7 +220,7 @@ func TestExtendSessionHandler(t *testing.T) {
 
 func TestClearSessionHandler(t *testing.T) {
 	// Create a test session
-	sessionID := "test-session-id"
+	sessionID := "test-session-id5"
 	sessions[sessionID] = &Session{
 		Requests:        []string{"request1", "request2", "request3"},
 		RequestCount:    3,
@@ -245,13 +246,13 @@ func TestClearSessionHandler(t *testing.T) {
 
 	// Check the response status code
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("clear session handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	// Check the response body
 	expected := "\"Session cleared\"\n"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("clear session handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
 	}
 
 	// Check if the session data was cleared
@@ -274,18 +275,18 @@ func TestClearSessionHandler(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNotFound {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
+		t.Errorf("clear ses handler returned wrong status code: got %v want %v", status, http.StatusNotFound)
 	}
 
 	expected = "{\"error\":\"Session not found\"}\n"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("clear ses handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
 	}
 }
 
 func TestDeleteSessionHandler(t *testing.T) {
 	// Create a test session
-	sessionID := "test-session-id"
+	sessionID := "test-session-id6"
 	sessions[sessionID] = &Session{
 		Requests:       []string{"request1", "request2", "request3"},
 		ExpirationTime: time.Now().Add(sessionDuration),
@@ -309,13 +310,13 @@ func TestDeleteSessionHandler(t *testing.T) {
 
 	// Check the response status code
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		t.Errorf("delete session handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
 	// Check the response body
 	expected := "\"Session deleted\"\n"
 	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+		t.Errorf("delete session handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
 	}
 
 	// Check if the session was deleted
@@ -334,5 +335,101 @@ func TestDeleteSessionHandler(t *testing.T) {
 	expected = "{\"error\":\"Session not found\"}\n"
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+	}
+}
+
+func TestCorsMiddleware(t *testing.T) {
+	// Create a test handler
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Test response"))
+	})
+
+	// Wrap the test handler with the CORS middleware
+	handler := corsMiddleware(testHandler)
+
+	// Create a new request
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new response recorder
+	rr := httptest.NewRecorder()
+
+	// Serve the request to the handler
+	handler.ServeHTTP(rr, req)
+
+	// Check the response headers
+	if rr.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("Access-Control-Allow-Origin header is missing or incorrect")
+	}
+	if rr.Header().Get("Access-Control-Allow-Headers") != HEAR_CONTENT_TYPE {
+		t.Errorf("Access-Control-Allow-Headers header is missing or incorrect")
+	}
+	if rr.Header().Get("Access-Control-Allow-Methods") != "GET, POST, PUT, DELETE, OPTIONS" {
+		t.Errorf("Access-Control-Allow-Methods header is missing or incorrect")
+	}
+
+	// Check the response body
+	expected := "Test response"
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected response: got %v want %v", rr.Body.String(), expected)
+	}
+}
+
+func TestMain(m *testing.M) {
+	// Set up the test environment
+	os.Setenv("PORT", "8080")
+
+	// Start the server in a separate goroutine
+	go main()
+
+	// Wait for the server to start
+	time.Sleep(1 * time.Second)
+
+	// Run the tests
+	code := m.Run()
+
+	// Exit with the test result
+	os.Exit(code)
+}
+
+func TestRootHandler(t *testing.T) {
+	// Create a new request
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new response recorder
+	rr := httptest.NewRecorder()
+
+	// Create a file server for serving static files
+	fs := http.FileServer(http.Dir("./static"))
+
+	// Create a new router
+	r := mux.NewRouter()
+	r.Use(corsMiddleware)
+
+	// Serve index.html for the root URL ("/")
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./static/index.html")
+	})
+
+	// Serve static files for all other routes
+	r.PathPrefix("/").Handler(http.StripPrefix("/", fs))
+
+	// Serve the request to the router
+	r.ServeHTTP(rr, req)
+
+	// Check the response status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	// Check the response content type
+	expected := "text/html; charset=utf-8"
+	if contentType := rr.Header().Get("Content-Type"); contentType != expected {
+		t.Errorf("handler returned unexpected content type: got %v want %v", contentType, expected)
 	}
 }
