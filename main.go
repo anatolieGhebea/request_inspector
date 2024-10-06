@@ -251,7 +251,6 @@ func main() {
 	apiRouter.HandleFunc("/session/{id}", getSessionHandler)
 	apiRouter.HandleFunc("/extend/{id}", extendSessionHandler)
 	apiRouter.HandleFunc("/clear/{id}", clearSessionHandler)
-	apiRouter.HandleFunc("/clear/{id}", clearSessionHandler)
 	apiRouter.HandleFunc("/delete/{id}", deleteSessionHandler)
 
 	// Serve static files for all other routes
