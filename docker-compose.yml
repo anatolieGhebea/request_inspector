@@ -2,7 +2,7 @@ version: '3'
 
 services:
   inspector:
-    image: ghebby/request_inspector:0.1.0
+    image: ghebby/request_inspector:latest
     restart: unless-stopped  
     environment:
       - TZ=Europe/Rome

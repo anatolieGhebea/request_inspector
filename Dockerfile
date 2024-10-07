@@ -1,9 +1,10 @@
 # Stage 1: Build the Go app
-FROM golang:1.21 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.21 AS builder
 
+ARG TARGETARCH
 WORKDIR /app
 COPY . .
-RUN GOOS=linux GOARCH=amd64 go build -o request_inspector ./...
+RUN GOOS=linux GOARCH=$TARGETARCH go build -o request_inspector ./...
 
 # Stage2: Use an image with bash and cp to copy the directory
 FROM alpine AS builder_frontend
