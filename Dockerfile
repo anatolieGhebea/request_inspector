@@ -1,10 +1,11 @@
 # Stage 1: Build the Go app
-FROM golang:1.21 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.21 AS builder
 
+ARG TARGETARCH
 WORKDIR /app
 COPY . .
 RUN ls -la /app && \
-    GOOS=linux GOARCH="linux/amd64" go build -o request_inspector . && \
+    GOOS=linux GOARCH="$TARGETARCH" go build -o request_inspector . && \
     ls -la /app
 
 # Stage 2: Use an image with bash and cp to copy the directory
