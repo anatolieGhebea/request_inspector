@@ -16,9 +16,8 @@ COPY ./static ./static
 RUN ls -la /app
 
 # Stage 3: Final stage
-FROM alpine:3.18
+FROM scratch
 
 COPY --from=builder /app/request_inspector /request_inspector
 COPY --from=builder_frontend /app/static /static
-RUN chmod +x /request_inspector
 CMD ["/request_inspector"]
