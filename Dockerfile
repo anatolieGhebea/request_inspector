@@ -14,9 +14,10 @@ WORKDIR /app
 COPY ./static ./static
 RUN ls -la /app
 
-# Stage 3: Copy the binary into a scratch container
-FROM scratch
+# Stage 3: Final stage
+FROM alpine:3.18
 
 COPY --from=builder /app/request_inspector /request_inspector
 COPY --from=builder_frontend /app/static /static
-ENTRYPOINT ["/request_inspector"]
+RUN chmod +x /request_inspector
+CMD ["/request_inspector"]
