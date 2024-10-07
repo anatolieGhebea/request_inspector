@@ -4,8 +4,9 @@ FROM --platform=$BUILDPLATFORM golang:1.21 AS builder
 ARG TARGETARCH
 WORKDIR /app
 COPY . .
+# Ensure static linking
 RUN ls -la /app && \
-    GOOS=linux GOARCH="$TARGETARCH" go build -o request_inspector . && \
+    CGO_ENABLED=0 GOOS=linux GOARCH="$TARGETARCH" go build -a -ldflags '-extldflags "-static"' -o request_inspector . && \
     ls -la /app
 
 # Stage 2: Use an image with bash and cp to copy the directory
