@@ -17,7 +17,6 @@ import (
 
 type Session struct {
 	Requests        []string
-	Mutex           sync.Mutex
 	RequestCount    int
 	LastRequestTime time.Time
 	ExpirationTime  time.Time
@@ -44,6 +43,10 @@ const (
 
 func createSessionHandler(w http.ResponseWriter, r *http.Request, duration time.Duration) {
 	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
+
+	sessionsMutex.Lock()
+	defer sessionsMutex.Unlock()
+
 	id := uuid.New().String()
 	sessions[id] = &Session{
 		Requests:       make([]string, 0),
@@ -61,14 +64,16 @@ func sessionRequestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
+
+	sessionsMutex.Lock()
+	defer sessionsMutex.Unlock()
+
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
-	session.Mutex.Lock()
-	defer session.Mutex.Unlock()
 
 	// Throttling logic
 	now := time.Now()
@@ -105,14 +110,16 @@ func getSessionHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(HEAR_CONTENT_TYPE, HEAR_APPLICATION_JSON)
 	vars := mux.Vars(r)
 	id := vars["id"]
+
+	sessionsMutex.RLock()
+	defer sessionsMutex.RUnlock()
+
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
-	session.Mutex.Lock()
-	defer session.Mutex.Unlock()
 
 	json.NewEncoder(w).Encode(session.Requests)
 }
@@ -122,15 +129,15 @@ func extendSessionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	sessionsMutex.Lock()
+	defer sessionsMutex.Unlock()
+
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
-
-	session.Mutex.Lock()
-	defer session.Mutex.Unlock()
 
 	remainingTime := time.Until(session.ExpirationTime)
 	if remainingTime < extensionThreshold {
@@ -147,15 +154,15 @@ func clearSessionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	sessionsMutex.Lock()
+	defer sessionsMutex.Unlock()
+
 	session, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(ErrorJsonResponse{Error: SESSION_NOT_FOUND})
 		return
 	}
-
-	session.Mutex.Lock()
-	defer session.Mutex.Unlock()
 
 	session.Requests = []string{}
 	session.RequestCount = 0
@@ -169,6 +176,9 @@ func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	sessionsMutex.Lock()
+	defer sessionsMutex.Unlock()
+
 	_, exists := sessions[id]
 	if !exists {
 		w.WriteHeader(http.StatusNotFound)
@@ -176,9 +186,7 @@ func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionsMutex.Lock()
 	delete(sessions, id)
-	sessionsMutex.Unlock()
 
 	json.NewEncoder(w).Encode("Session deleted")
 }
