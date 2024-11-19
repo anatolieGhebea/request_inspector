@@ -1,3 +1,5 @@
+[![Quality Gate Status](https://sonar.ga-dns.com/api/project_badges/measure?project=requestinspector&metric=alert_status&token=sqb_a26587bad346841e0e0cb411b6a289d8b078b54a)](https://sonar.ga-dns.com/dashboard?id=requestinspector)
+
 # Introduction
 
 Have you ever been in a situation where you needed to inspect a request from a third-party service that lacked clear documentation? This application provides a simple tool to inspect the request header and payload of any HTTP request. Generate a session, use the provided URL as the endpoint for the request you want to examine, and view the request header and payload on the session page.
